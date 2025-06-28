@@ -96,6 +96,10 @@ Parameters:
       - "true"
       - "false"
 
+  ControlPlaneEventBusArn:
+    Type: String
+    Description: "The ARN of the EventBus in the Control Plane"
+
 Conditions:
   CreateEntitlementLogic:
     Fn::Or:
@@ -232,6 +236,7 @@ Resources:
       Runtime: nodejs22.x
       Environment:
         Variables:
+          EventBusName: !Ref ControlPlaneEventBusArn
           NewSubscribersTableName: !Ref NewSubscribersTableName
           EntitlementQueueUrl:
             !If [CreateEntitlementLogic, !Ref EntitlementSQSQueue, !Ref AWS::NoValue]
@@ -245,6 +250,18 @@ Resources:
               Effect: Allow
               Action:
                 - aws-marketplace:ResolveCustomer
+              Resource: "*"
+        - Statement:
+            - Sid: EventBridgePutEvents
+              Effect: Allow
+              Action:
+                - events:PutEvents
+              Resource: !Ref ControlPlaneEventBusArn
+        - Statement:
+            - Sid: AWSMarketplaceEntitlements
+              Effect: Allow
+              Action:
+                - aws-marketplace:GetEntitlements
               Resource: "*"
         - !If
           - CreateEntitlementLogic
@@ -349,6 +366,7 @@ Resources:
       Runtime: nodejs22.x
       Environment:
         Variables:
+          EventBusName: !Ref ControlPlaneEventBusArn
           SupportSNSArn: !Ref SupportSNSTopic
           LOG_LEVEL: "info"
       Policies:
@@ -359,6 +377,12 @@ Resources:
               Action:
                 - sns:Publish
               Resource: !Ref SupportSNSTopic
+        - Statement:
+            - Sid: EventBridgePutEvents
+              Effect: Allow
+              Action:
+                - events:PutEvents
+              Resource: !Ref ControlPlaneEventBusArn
       Events:
         Stream:
           Type: DynamoDB

@@ -1,7 +1,9 @@
 const winston = require('winston');
 const AWS = require('aws-sdk');
 const SNS = new AWS.SNS({ apiVersion: '2010-03-31' });
-const { SupportSNSArn: TopicArn } = process.env;
+const eventbridge = new AWS.EventBridge({ apiVersion: '2015-10-07' });
+
+const { SupportSNSArn: TopicArn, EventBusName: eventBusName } = process.env;
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.json(),
@@ -60,6 +62,16 @@ exports.dynamodbStreamHandler = async (event, context) => {
       } else if (revokeAccess) {
         subject = 'AWS Marketplace customer end of subscription';
         message = `unsubscribe-success: ${JSON.stringify(newImage)}`;
+
+        const eventBridgeResponse = await eventbridge.putEvents({ 
+          Entries: [{
+            EventBusName: eventBusName,
+            Source: 'marketplaceEventSource',
+            DetailType: 'offboardingRequest',
+            Detail: JSON.stringify(newImage)
+          }]
+        });
+        console.log('EventBridge response:', eventBridgeResponse);
       } else if (entitlementUpdated) {
         subject = 'AWS Marketplace customer change of subscription';
         message = `entitlement-updated: ${JSON.stringify(newImage)}`;

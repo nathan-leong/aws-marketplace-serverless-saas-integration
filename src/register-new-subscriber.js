@@ -1,9 +1,12 @@
 const AWS = require('aws-sdk');
-const { NewSubscribersTableName: newSubscribersTableName, EntitlementQueueUrl: entitlementQueueUrl, MarketplaceSellerEmail: marketplaceSellerEmail, AWS_REGION:aws_region } = process.env;
+const { NewSubscribersTableName: newSubscribersTableName, EntitlementQueueUrl: entitlementQueueUrl, MarketplaceSellerEmail: marketplaceSellerEmail, AWS_REGION:aws_region, EventBusName: eventBusName } = process.env;
 const ses = new AWS.SES({ region: aws_region});
 const marketplacemetering = new AWS.MarketplaceMetering({ apiVersion: '2016-01-14', region: aws_region });
 const dynamodb = new AWS.DynamoDB({ apiVersion: '2012-08-10', region: aws_region });
 const sqs = new AWS.SQS({ apiVersion: '2012-11-05', region: aws_region });
+
+const marketplaceEntitlementService = new AWS.MarketplaceEntitlementService({ apiVersion: '2017-01-11', region: 'us-east-1' });
+const eventbridge = new AWS.EventBridge({ apiVersion: '2015-10-07', region: aws_region });
 
 const lambdaResponse = (statusCode, body) => ({
   statusCode,
@@ -88,6 +91,34 @@ exports.registerNewSubscriber = async (event) => {
 
       await dynamodb.putItem(dynamoDbParams).promise();
 
+      //##########
+        // Get entitlements
+      const entitlementParams = {
+        ProductCode,
+        Filter: {
+          CUSTOMER_IDENTIFIER: [CustomerIdentifier],
+        },
+      };
+      const entitlementsResponse = await marketplaceEntitlementService.getEntitlements(entitlementParams).promise();
+      const entitlements = entitlementsResponse.Entitlements || [];
+
+      // Send event to EventBridge
+      if (eventBusName) {
+        const eventBridgeResponse = await eventbridge.putEvents({ 
+          Entries: [{
+            EventBusName: eventBusName,
+            Source: 'marketplaceEventSource',
+            DetailType: 'onboardingRequest',
+            Detail: JSON.stringify({
+                      ...dynamoDbParams,
+                      entitlements
+                  })
+              }]
+          });
+          console.log('EventBridge response:', eventBridgeResponse);
+      }
+      //##########
+      
       // Only for SaaS Contracts, check entitlement
       if (entitlementQueueUrl) {
         const SQSParams = {
