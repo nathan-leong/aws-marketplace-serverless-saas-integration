@@ -66,7 +66,7 @@ exports.dynamodbStreamHandler = async (event, context) => {
         const eventBridgeResponse = await eventbridge.putEvents({ 
           Entries: [{
             EventBusName: eventBusName,
-            Source: 'marketplaceEventSource',
+            Source: 'controlPlaneEventSource',
             DetailType: 'offboardingRequest',
             Detail: JSON.stringify(newImage)
           }]

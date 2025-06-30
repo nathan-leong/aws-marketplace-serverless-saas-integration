@@ -107,7 +107,7 @@ exports.registerNewSubscriber = async (event) => {
         const eventBridgeResponse = await eventbridge.putEvents({ 
           Entries: [{
             EventBusName: eventBusName,
-            Source: 'marketplaceEventSource',
+            Source: 'controlPlaneEventSource',
             DetailType: 'onboardingRequest',
             Detail: JSON.stringify({
                       ...dynamoDbParams,
