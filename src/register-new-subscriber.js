@@ -108,7 +108,7 @@ exports.registerNewSubscriber = async (event) => {
           Entries: [{
             EventBusName: eventBusName,
             Source: 'marketplaceEventSource',
-            DetailType: 'onboardingRequest',
+            DetailType: 'tenantRegistration',
             Detail: JSON.stringify({
               customerId: CustomerIdentifier,
               customerName: companyName,
