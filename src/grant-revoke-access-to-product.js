@@ -66,11 +66,11 @@ exports.dynamodbStreamHandler = async (event, context) => {
         const eventBridgeResponse = await eventbridge.putEvents({ 
           Entries: [{
             EventBusName: eventBusName,
-            Source: 'controlPlaneEventSource',
+            Source: 'marketplaceEventSource',
             DetailType: 'offboardingRequest',
             Detail: JSON.stringify(newImage)
           }]
-        });
+        }).promise();
         console.log('EventBridge response:', eventBridgeResponse);
       } else if (entitlementUpdated) {
         subject = 'AWS Marketplace customer change of subscription';

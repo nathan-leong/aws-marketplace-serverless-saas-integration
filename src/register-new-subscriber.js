@@ -1,6 +1,6 @@
 const AWS = require('aws-sdk');
-const { NewSubscribersTableName: newSubscribersTableName, EntitlementQueueUrl: entitlementQueueUrl, MarketplaceSellerEmail: marketplaceSellerEmail, AWS_REGION:aws_region, EventBusName: eventBusName } = process.env;
-const ses = new AWS.SES({ region: aws_region});
+const { NewSubscribersTableName: newSubscribersTableName, EntitlementQueueUrl: entitlementQueueUrl, MarketplaceSellerEmail: marketplaceSellerEmail, AWS_REGION: aws_region, EventBusName: eventBusName } = process.env;
+const ses = new AWS.SES({ region: aws_region });
 const marketplacemetering = new AWS.MarketplaceMetering({ apiVersion: '2016-01-14', region: aws_region });
 const dynamodb = new AWS.DynamoDB({ apiVersion: '2012-08-10', region: aws_region });
 const sqs = new AWS.SQS({ apiVersion: '2012-11-05', region: aws_region });
@@ -84,7 +84,7 @@ exports.registerNewSubscriber = async (event) => {
           contactEmail: { S: contactEmail },
           customerIdentifier: { S: CustomerIdentifier },
           productCode: { S: ProductCode },
-          customerAWSAccountID: { S: CustomerAWSAccountId },          
+          customerAWSAccountID: { S: CustomerAWSAccountId },
           created: { S: datetime },
         },
       };
@@ -92,7 +92,7 @@ exports.registerNewSubscriber = async (event) => {
       await dynamodb.putItem(dynamoDbParams).promise();
 
       //##########
-        // Get entitlements
+      // Get entitlements
       const entitlementParams = {
         ProductCode,
         Filter: {
@@ -104,21 +104,28 @@ exports.registerNewSubscriber = async (event) => {
 
       // Send event to EventBridge
       if (eventBusName) {
-        const eventBridgeResponse = await eventbridge.putEvents({ 
+        const eventBridgeResponse = await eventbridge.putEvents({
           Entries: [{
             EventBusName: eventBusName,
-            Source: 'controlPlaneEventSource',
+            Source: 'marketplaceEventSource',
             DetailType: 'onboardingRequest',
             Detail: JSON.stringify({
-                      ...dynamoDbParams,
-                      entitlements
-                  })
-              }]
-          });
-          console.log('EventBridge response:', eventBridgeResponse);
+              customerId: CustomerIdentifier,
+              customerName: companyName,
+              customerEmail: contactEmail,
+              customerPhone: contactPhone,
+              customerContactPerson: contactPerson,
+              customerAWSAccountId: CustomerAWSAccountId,
+              productCode: ProductCode,
+              createdAt: datetime,
+              entitlements: entitlements
+            })
+          }]
+        }).promise();
+        console.log('EventBridge response:', eventBridgeResponse);
       }
       //##########
-      
+
       // Only for SaaS Contracts, check entitlement
       if (entitlementQueueUrl) {
         const SQSParams = {
